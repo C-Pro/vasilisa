@@ -1,0 +1,8 @@
+.vscode
+*.wav
+*.raw
+*.png
+*.model
+*.swp
+*.*~
+*.json
