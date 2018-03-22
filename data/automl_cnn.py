@@ -16,7 +16,7 @@ import random
 
 width=200
 height=99
-popul_size=30
+popul_size=10
 
 meta=[1,        #number of conv layers (1-3)
       1, 1, 1,  #first conv layer hyperparameters (filters, kernel, stride)
@@ -144,56 +144,53 @@ print(y_test.shape)
 
 
 population, losses, ok = load_population()
+changed = []
 if not ok:
     population=[random_meta() for _ in range(popul_size)]
     losses=[100500]*popul_size
-popul_loaded=ok
+    changed = [x for x in range(popul_size)]
 
 while True:
 
-    #if population loaded from file
-    #then skip first evaluation
-    if not popul_loaded:
-        #evaluating population
-        for i in range(popul_size):
-            print("Evaluating model ", i)
-            curr_meta = population[i]
-            model=None
+    #evaluating population
+    for i in changed:
+        print("Evaluating model ", i)
+        curr_meta = population[i]
+        model=None
 
-            try:
-                sess = tf.Session()
-                tf.set_random_seed(42)
-                K.set_session(sess)
-                model = make_model(curr_meta)
-            except Exception as e:
-                print("Bad meta: ", e)
-                sess.close()
-                continue
-
-            try:
-                model.fit(x_train, y_train,
-                          batch_size=15,
-                          epochs=1,
-                          verbose=1) #,
-                          #validation_data=(x_test, y_test))
-                score = model.evaluate(x_test, y_test, verbose=0)
-                losses[i] = score[0]
-                print('Test loss:', score[0])
-                print('Test accuracy:', score[1])
-
-                #Save best performing model and its meta
-                if min_test_loss > score[0]:
-                    print("Best model to date!")
-                    min_test_loss = score[0]
-                    best_meta = curr_meta[:]
-                    model.save("vasilisa.model")
-                    with open("vasilisa_meta.json", "w") as f:
-                        f.write(json.dumps({"meta": best_meta, "loss": score[0], "accuracy": score[1]}))
-            except Exception as e:
-                print("Caught exception: ", e)
+        try:
+            sess = tf.Session()
+            tf.set_random_seed(42)
+            K.set_session(sess)
+            model = make_model(curr_meta)
+        except Exception as e:
+            print("Bad meta: ", e)
             sess.close()
-    else:
-        popul_loaded = False
+            continue
+
+        try:
+            model.fit(x_train, y_train,
+                      batch_size=15,
+                      epochs=1,
+                      verbose=1) #,
+                      #validation_data=(x_test, y_test))
+            score = model.evaluate(x_test, y_test, verbose=0)
+            losses[i] = score[0]
+            print('Test loss:', score[0])
+            print('Test accuracy:', score[1])
+
+            #Save best performing model and its meta
+            if min_test_loss > score[0]:
+                print("Best model to date!")
+                min_test_loss = score[0]
+                best_meta = curr_meta[:]
+                model.save("vasilisa.model")
+                with open("vasilisa_meta.json", "w") as f:
+                    f.write(json.dumps({"meta": best_meta, "loss": score[0], "accuracy": score[1]}))
+        except Exception as e:
+            print("Caught exception: ", e)
+        sess.close()
+    changed = []
 
     #replacing worst performing half of population
     #with mutated offsprings of best part
@@ -201,12 +198,18 @@ while True:
     best_half=[i for (i, l) in enumerate(losses) if l <= median_loss]
     worst_half=[i for (i, l) in enumerate(losses) if l > median_loss]
     for i in worst_half:
-        parents_i = random.sample(best_half, 3)
+        ilosses = [{"x":x, "loss":losses[x]} for x in best_half]
+        ilosses.sort(key=lambda x: x["loss"], reverse=True)
+        best_half = [x["x"] for x in ilosses]
+        s = sum(range(len(best_half)+1))
+        probs = [(x+1)/s for x in range(len(best_half))]
+        parents_i = np.random.choice(best_half, 3, probs)
         parents = [population[x] for x in parents_i]
         print("Replacing model {} with loss {:.4f} with crossover of ({:.4f},{:.4f},{:.4f})".format(
                 i, losses[i], *[losses[x] for x in parents_i]))
         population[i] = mutate(crossover(*parents))
         losses[i] = 100500
+        changed += [i]
 
     save_population(population, losses)
 
