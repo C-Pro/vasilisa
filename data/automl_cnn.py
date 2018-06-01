@@ -30,11 +30,11 @@ meta=[1,        #number of conv layers (1-3)
 #maximum values (-1) for all
 #hyperparameters
 meta_limits=[3,
-             8, 3, 3,
+             8, 8, 8,
              3, 2,
-             4, 3, 3,
+             8, 4, 4,
              3, 2,
-             2, 3, 3,
+             8, 2, 2,
              2, 2,
              512
         ]

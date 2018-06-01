@@ -6,5 +6,5 @@
 *.swp
 *.*~
 *.json
-spectro
-
+specro
+data/spectro

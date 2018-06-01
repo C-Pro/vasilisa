@@ -43,6 +43,20 @@ do
         done
     fi
 done
+# mix in ambience to validation samples
+for c in 0 1
+do
+    for f in $c/val*.raw
+    do
+        fname=`basename $f`
+        # mix sample with abmience files
+        for a in ambience/split*.raw
+        do
+            aname=`basename $a | sed -r 's/([^\.]+).*/\1/'`
+            sox -m $FMT $f $FMT $a $c/val$aname$fname
+        done
+    done
+done
 #copy ambience samples to "other" class
 cp ambience/*.raw 0
 

@@ -36,7 +36,7 @@ func (m *img) Bounds() image.Rectangle { return image.Rect(0, 0, m.w, m.h) }
 
 func compress(x float64) uint8 {
 	//1/((1/255)+e^-log(x))
-	return uint8(float64(1) / ((float64(1) / float64(255)) + math.Exp(-(math.Log(x) / math.Log(8)))))
+	return uint8(float64(1) / ((float64(1) / float64(255)) + math.Exp(-(math.Log(x) / math.Log(16)))))
 }
 
 func draw(height, width int) {
@@ -80,7 +80,7 @@ func main() {
 		opts spectral.PwelchOptions
 	)
 	opts.NFFT = 512
-	//opts.Noverlap = 128
+	opts.Noverlap = 128
 
 	b = make([]int16, 160)
 	f = make([]float64, 160)
@@ -113,7 +113,7 @@ func main() {
 
 		amp, freq := spectral.Pwelch(f, 16000, &opts)
 		for i, _ := range amp {
-			//fmt.Printf("%d\t: %d\n", int(freq[i]), compress(v))
+			fmt.Printf("%d\t: %d\n", int(freq[i]), compress(freq[i]))
 			if i > minI && freq[i] < minFreq {
 				minI = i
 			}
@@ -128,11 +128,11 @@ func main() {
 				if v < 0 {
 					fmt.Println(v)
 				}
-				canvas[j][i-minI-1] = color.RGBA{R: compress(v), G: 0, B: 0, A: 255}
+				p := compress(v)
+				canvas[j][i-minI-1] = color.RGBA{R: p, G: p, B: p, A: 255}
 			}
 		}
 		j++
 	}
 	draw(height, j)
-
 }

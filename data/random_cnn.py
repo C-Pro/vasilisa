@@ -30,13 +30,13 @@ meta_min=[1,        #number of conv layers (1-3)
 #maximum values for all
 #hyperparameters
 meta_max=[3,
-          8, 3, 3,
-          3, 2,
-          4, 3, 3,
-          3, 2,
-          2, 3, 3,
-          2, 2,
-          512
+          32, 4, 4,
+          4, 3,
+          32, 4, 4,
+          4, 3,
+          32, 4, 4,
+          4, 3,
+          4096
           ]
 
 def random_meta():
@@ -136,8 +136,9 @@ while True:
 
     try:
         model.fit(x_train, y_train,
-                  batch_size=15,
-                  epochs=1,
+                  batch_size=30,
+                  epochs=8,
+                  shuffle=True,
                   verbose=1) #,
                   #validation_data=(x_test, y_test))
         score = model.evaluate(x_test, y_test, verbose=0)

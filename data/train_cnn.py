@@ -6,12 +6,14 @@ import tensorflow as tf
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.layers import InputLayer, Dense, Flatten, Conv2D, MaxPooling2D, Dropout
 from tensorflow.python.keras.models import Sequential
+from tensorflow.python.keras.callbacks import TensorBoard
 
 
 import glob
 import sys
 import json
 import os
+import time
 
 width=200
 height=99
@@ -52,31 +54,41 @@ print(x_test.shape)
 print(y_test.shape)
 
 sess = tf.Session()
-tf.set_random_seed(0)
+tf.set_random_seed(42)
 K.set_session(sess)
 
 model = Sequential()
 model.add(InputLayer(input_shape=(width, height, 1)))
-model.add(Conv2D(32, kernel_size=(3, 3), strides=(2, 2),
+model.add(Conv2D(8, kernel_size=2,
                  activation='relu'))
-model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2)))
-model.add(Conv2D(32, kernel_size=(3, 3), strides=(2, 2),
+model.add(Conv2D(8, kernel_size=2,
                  activation='relu'))
+model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+model.add(Dropout(0.25))
+model.add(Conv2D(32, kernel_size=(2, 2),
+                 activation='relu'))
+model.add(Conv2D(16, kernel_size=(2, 2),
+                 activation='relu'))
+model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+model.add(Dropout(0.25))
 model.add(Flatten())
-model.add(Dense(4096, activation='relu'))
-model.add(Dropout(0.75))
+model.add(Dense(1024, activation='softmax'))
+model.add(Dropout(0.5))
 model.add(Dense(2, activation='softmax'))
 
 model.compile(loss=tf.keras.losses.categorical_crossentropy,
               optimizer=tf.keras.optimizers.Adam(),
               metrics=['accuracy'])
 
+tensorboard = TensorBoard(log_dir="/tmp/tflogs/{}".format(int(time.time())))
 model.fit(x_train, y_train,
           batch_size=15,
-          epochs=2,
+          epochs=20,
           verbose=1,
-          validation_data=(x_test, y_test))
+          validation_data=(x_test, y_test),
+          callbacks=[tensorboard])
 score = model.evaluate(x_test, y_test, verbose=0)
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 model.save("vasilisa.model")
+
