@@ -14,8 +14,8 @@ import json
 import os
 import random
 
-width=200
-height=99
+width=100
+height=20
 popul_size=10
 
 meta=[1,        #number of conv layers (1-3)
@@ -40,7 +40,7 @@ meta_limits=[3,
         ]
 
 population=[]
-losses=[]
+accuracies=[]
 
 def random_meta():
     "Random hyperparameters"
@@ -56,19 +56,19 @@ def crossover(mother, father, other):
     return [int(np.mean(np.array([mother[i],father[i],other[i]]))) \
             for i in range(len(meta))]
 
-def save_population(population, losses):
+def save_population(population, accuracies):
     with open("population.json", "w") as f:
-        f.write(json.dumps({"population": population, "losses": losses}, indent=2))
+        f.write(json.dumps({"population": population, "accuracies": accuracies}, indent=2))
 
 def load_population():
     try:
         with open("population.json", "rt") as f:
             j = json.loads(f.read())
-            return j["population"], j["losses"], True
+            return j["population"], j["accuracies"], True
     except Exception as e:
         return None, None, False
 
-min_test_loss=100500
+max_test_acc=0
 best_meta=meta[:]
 
 def make_model(meta):
@@ -88,7 +88,6 @@ def make_model(meta):
                                        meta[5+l*5]))
             model.add(MaxPooling2D(pool_size=meta[4+l*5],
                                    strides=meta[5+l*5]))
-        model.add(Dropout(0.3));
 
     model.add(Flatten())
     print("Dense({})".format(meta[-1]))
@@ -144,11 +143,11 @@ print(x_test.shape)
 print(y_test.shape)
 
 
-population, losses, ok = load_population()
+population, accuracies, ok = load_population()
 changed = []
 if not ok:
     population=[random_meta() for _ in range(popul_size)]
-    losses=[100500]*popul_size
+    accuracies=[0]*popul_size
     changed = [x for x in range(popul_size)]
 
 while True:
@@ -171,19 +170,19 @@ while True:
 
         try:
             model.fit(x_train, y_train,
-                      batch_size=100,
-                      epochs=25,
+                      batch_size=15,
+                      epochs=1,
                       verbose=1) #,
                       #validation_data=(x_test, y_test))
             score = model.evaluate(x_test, y_test, verbose=0)
-            losses[i] = score[0]
+            accuracies[i] = score[1]
             print('Test loss:', score[0])
             print('Test accuracy:', score[1])
 
             #Save best performing model and its meta
-            if min_test_loss > score[0]:
+            if max_test_acc > score[1]:
                 print("Best model to date!")
-                min_test_loss = score[0]
+                min_test_acc = score[1]
                 best_meta = curr_meta[:]
                 model.save("vasilisa.model")
                 with open("vasilisa_meta.json", "w") as f:
@@ -195,24 +194,24 @@ while True:
 
     #replacing worst performing half of population
     #with mutated offsprings of best part
-    median_loss = np.median(losses)
-    best_half=[i for (i, l) in enumerate(losses) if l <= median_loss]
-    worst_half=[i for (i, l) in enumerate(losses) if l > median_loss]
+    median_acc = np.median(accuracies)
+    best_half=[i for (i, l) in enumerate(accuracies) if l >= median_acc]
+    worst_half=[i for (i, l) in enumerate(accuracies) if l < median_acc]
     for i in worst_half:
-        ilosses = [{"x":x, "loss":losses[x]} for x in best_half]
-        ilosses.sort(key=lambda x: x["loss"], reverse=True)
-        best_half = [x["x"] for x in ilosses]
+        iaccs = [{"x":x, "accuracy":accuracies[x]} for x in best_half]
+        iaccs.sort(key=lambda x: x["accuracy"])
+        best_half = [x["x"] for x in iaccs]
         s = sum(range(len(best_half)+1))
         probs = [(x+1)/s for x in range(len(best_half))]
         parents_i = np.random.choice(best_half, 3, probs)
         parents = [population[x] for x in parents_i]
-        print("Replacing model {} with loss {:.4f} with crossover of ({:.4f},{:.4f},{:.4f})".format(
-                i, losses[i], *[losses[x] for x in parents_i]))
+        print("Replacing model {} with acc {:.4f} with crossover of ({:.4f},{:.4f},{:.4f})".format(
+                i, accuracies[i], *[accuracies[x] for x in parents_i]))
         population[i] = mutate(crossover(*parents))
-        losses[i] = 100500
+        accuracies[i] = 0
         changed += [i]
 
-    save_population(population, losses)
+    save_population(population, accuracies)
 
 
 

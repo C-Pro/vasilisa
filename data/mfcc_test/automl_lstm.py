@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras import backend as K
-from tensorflow.python.keras.layers import InputLayer, Dense, Flatten, Conv2D, MaxPooling2D, Dropout
+from tensorflow.python.keras.layers import InputLayer, Dense, LSTM, Conv2D, MaxPooling2D, Dropout
 from tensorflow.python.keras.models import Sequential
 
 
@@ -14,33 +14,33 @@ import json
 import os
 import random
 
-width=200
-height=99
+width=100
+height=20
 popul_size=10
 
-meta=[1,        #number of conv layers (1-3)
-      1, 1, 1,  #first conv layer hyperparameters (filters, kernel, stride)
-      0, 0,     #first pooling layer (pool, stride). NO layer if zeros
-      0, 0, 0,  #second conv layer hyperparameters (filters, kernel, stride)
-      0, 0,     #second pooling layer (pool, stride). NO layer if zeros
-      0, 0, 0,  #third conv layer hyperparameters (filters, kernel, stride)
-      0, 0,     #third pooling layer (pool, stride). NO layer if zeros
+meta=[1,        #number of lstm layers (1-3)
+      10,       #first lstm layer size
+      0,        #first dropout layer. 0 - no layer, 1 - exist
+      10,       #second lstm layer size
+      0,        #second dropout
+      10,       #third lstm layer size
+      0,        #third dropout
       100       #dense layer neuron count
     ]
 #maximum values (-1) for all
 #hyperparameters
 meta_limits=[3,
-             8, 4, 4,
-             4, 4,
-             8, 4, 4,
-             4, 4,
-             8, 2, 2,
-             4, 4,
+             128,
+             1,
+             128,
+             1,
+             128,
+             1,
              1024
         ]
 
 population=[]
-losses=[]
+accuracies=[]
 
 def random_meta():
     "Random hyperparameters"
@@ -56,41 +56,33 @@ def crossover(mother, father, other):
     return [int(np.mean(np.array([mother[i],father[i],other[i]]))) \
             for i in range(len(meta))]
 
-def save_population(population, losses):
+def save_population(population, accuracies):
     with open("population.json", "w") as f:
-        f.write(json.dumps({"population": population, "losses": losses}, indent=2))
+        f.write(json.dumps({"population": population, "accuracies": accuracies}, indent=2))
 
 def load_population():
     try:
         with open("population.json", "rt") as f:
             j = json.loads(f.read())
-            return j["population"], j["losses"], True
+            return j["population"], j["accuracies"], True
     except Exception as e:
         return None, None, False
 
-min_test_loss=100500
+max_test_acc=0
 best_meta=meta[:]
 
 def make_model(meta):
     'create model based on meta definition'
     model = Sequential()
     model.add(InputLayer(input_shape=(width, height, 1)))
+    model.add(Conv2D(1,))
     for l in range(meta[0]):
-        print("Conv2D({},{},{})".format(meta[1+l*5],
-                                       meta[2+l*5],
-                                       meta[3+l*5]))
-        model.add(Conv2D(meta[1+l*5],
-                         kernel_size=meta[2+l*5],
-                         strides=meta[3+l*5],
-                         activation='relu'))
-        if meta[4+l*5] > 0:
-            print("MaxPooling2D({},{})".format(meta[4+l*5],
-                                       meta[5+l*5]))
-            model.add(MaxPooling2D(pool_size=meta[4+l*5],
-                                   strides=meta[5+l*5]))
-        model.add(Dropout(0.3));
+        print("LSTM({})".format(meta[1+l*2]))
+        model.add(LSTM(meta[1+l*2]))
+        if meta[2+l*2] > 0:
+            print("DROPOUT(0.75)")
+            model.add(Dropout(0.75))
 
-    model.add(Flatten())
     print("Dense({})".format(meta[-1]))
     model.add(Dense(meta[-1], activation='relu'))
     model.add(Dropout(0.75))
@@ -144,11 +136,11 @@ print(x_test.shape)
 print(y_test.shape)
 
 
-population, losses, ok = load_population()
+population, accuracies, ok = load_population()
 changed = []
 if not ok:
     population=[random_meta() for _ in range(popul_size)]
-    losses=[100500]*popul_size
+    accuracies=[0]*popul_size
     changed = [x for x in range(popul_size)]
 
 while True:
@@ -171,19 +163,19 @@ while True:
 
         try:
             model.fit(x_train, y_train,
-                      batch_size=100,
-                      epochs=25,
+                      batch_size=15,
+                      epochs=1,
                       verbose=1) #,
                       #validation_data=(x_test, y_test))
             score = model.evaluate(x_test, y_test, verbose=0)
-            losses[i] = score[0]
+            accuracies[i] = score[1]
             print('Test loss:', score[0])
             print('Test accuracy:', score[1])
 
             #Save best performing model and its meta
-            if min_test_loss > score[0]:
+            if max_test_acc > score[1]:
                 print("Best model to date!")
-                min_test_loss = score[0]
+                min_test_acc = score[1]
                 best_meta = curr_meta[:]
                 model.save("vasilisa.model")
                 with open("vasilisa_meta.json", "w") as f:
@@ -195,24 +187,24 @@ while True:
 
     #replacing worst performing half of population
     #with mutated offsprings of best part
-    median_loss = np.median(losses)
-    best_half=[i for (i, l) in enumerate(losses) if l <= median_loss]
-    worst_half=[i for (i, l) in enumerate(losses) if l > median_loss]
+    median_acc = np.median(accuracies)
+    best_half=[i for (i, l) in enumerate(accuracies) if l >= median_acc]
+    worst_half=[i for (i, l) in enumerate(accuracies) if l < median_acc]
     for i in worst_half:
-        ilosses = [{"x":x, "loss":losses[x]} for x in best_half]
-        ilosses.sort(key=lambda x: x["loss"], reverse=True)
-        best_half = [x["x"] for x in ilosses]
+        iaccs = [{"x":x, "accuracy":accuracies[x]} for x in best_half]
+        iaccs.sort(key=lambda x: x["accuracy"])
+        best_half = [x["x"] for x in iaccs]
         s = sum(range(len(best_half)+1))
         probs = [(x+1)/s for x in range(len(best_half))]
         parents_i = np.random.choice(best_half, 3, probs)
         parents = [population[x] for x in parents_i]
-        print("Replacing model {} with loss {:.4f} with crossover of ({:.4f},{:.4f},{:.4f})".format(
-                i, losses[i], *[losses[x] for x in parents_i]))
+        print("Replacing model {} with acc {:.4f} with crossover of ({:.4f},{:.4f},{:.4f})".format(
+                i, accuracies[i], *[accuracies[x] for x in parents_i]))
         population[i] = mutate(crossover(*parents))
-        losses[i] = 100500
+        accuracies[i] = 0
         changed += [i]
 
-    save_population(population, losses)
+    save_population(population, accuracies)
 
 
 

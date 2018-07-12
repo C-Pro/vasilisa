@@ -17,26 +17,26 @@ width=200
 height=99
 
 #minimal values for hyperparameters
-meta_min=[1,        #number of conv layers (1-3)
-          1, 1, 1,  #first conv layer hyperparameters (filters, kernel, stride)
-          0, 1,     #first pooling layer (pool, stride). NO layer if zeros
-          1, 1, 1,  #second conv layer hyperparameters (filters, kernel, stride)
-          0, 1,     #second pooling layer (pool, stride). NO layer if zeros
-          1, 1, 1,  #third conv layer hyperparameters (filters, kernel, stride)
-          0, 1,     #third pooling layer (pool, stride). NO layer if zeros
-          0         #dense layer neuron count
+meta_min=[2,        #number of conv layers (1-3)
+          3, 2, 2,  #first conv layer hyperparameters (filters, kernel, stride)
+          2, 1,     #first pooling layer (pool, stride). NO layer if zeros
+          2, 2, 2,  #second conv layer hyperparameters (filters, kernel, stride)
+          2, 1,     #second pooling layer (pool, stride). NO layer if zeros
+          2, 2, 2,  #third conv layer hyperparameters (filters, kernel, stride)
+          2, 2,     #third pooling layer (pool, stride). NO layer if zeros
+          32        #dense layer neuron count
          ]
 
 #maximum values for all
 #hyperparameters
 meta_max=[3,
-          32, 4, 4,
+          6, 3, 3,
           4, 3,
-          32, 4, 4,
+          4, 3, 3,
           4, 3,
-          32, 4, 4,
+          4, 3, 3,
           4, 3,
-          4096
+          512
           ]
 
 def random_meta():
@@ -63,12 +63,13 @@ def make_model(meta):
                                        meta[5+l*5]))
             model.add(MaxPooling2D(pool_size=meta[4+l*5],
                                    strides=meta[5+l*5]))
+        model.add(Dropout(0.1))
 
     model.add(Flatten())
     if meta[-1]>0:
         print("Dense({})".format(meta[-1]))
         model.add(Dense(meta[-1], activation='relu'))
-    model.add(Dropout(0.75))
+    model.add(Dropout(0.3))
     model.add(Dense(2, activation='softmax'))
 
     model.compile(loss=tf.keras.losses.categorical_crossentropy,
@@ -136,8 +137,8 @@ while True:
 
     try:
         model.fit(x_train, y_train,
-                  batch_size=30,
-                  epochs=8,
+                  batch_size=100,
+                  epochs=30,
                   shuffle=True,
                   verbose=1) #,
                   #validation_data=(x_test, y_test))

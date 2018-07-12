@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	minFreq = 300
-	maxFreq = 3400
+	minFreq = 200
+	maxFreq = 5000
 )
 
 var (
@@ -97,19 +97,19 @@ func main() {
 			draw(height, j)
 			return
 		}
-		maxVal := -math.MaxFloat64
+		//maxVal := -math.MaxFloat64
 		for i, v := range b {
-			f[i] = float64(v)
-			if maxVal < math.Abs(float64(v)) {
-				maxVal = math.Abs(float64(v))
-			}
+			f[i] = float64(v) / 32767
+			//	if maxVal < math.Abs(float64(v)) {
+			//		maxVal = math.Abs(float64(v))
+			//	}
 		}
-		// Normalize values to 8192
-		for i, _ := range f {
-			if f[i] != float64(0) {
-				f[i] = (f[i] / maxVal) * float64(8192)
-			}
-		}
+		// Normalize values to 65536
+		//for i, _ := range f {
+		//	if f[i] != float64(0) {
+		//		f[i] = (f[i] / maxVal) * float64(65536)
+		//	}
+		//}
 
 		amp, freq := spectral.Pwelch(f, 16000, &opts)
 		for i, _ := range amp {
