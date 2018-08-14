@@ -21,6 +21,8 @@ import queue
 width=200
 height=99
 
+THRESHOLD=0.95
+
 rec = "arecord -D default -r 16000 -f S16_LE -d 2 -t raw"
 spec = "sox -e signed-integer -t raw -b 16 -r 16000 - -n spectrogram -mr -x 200 -y 99 -o"
 
@@ -59,7 +61,7 @@ def detect(q):
         d = np.array(data, np.float32)
         x = np.reshape(d, (1, width, height, 1))
         p = model.predict(x)
-        if p[0][0] >= 0.97:
+        if p[0][0] >= THRESHOLD:
             on_activation()
 
 if __name__ == "__main__":

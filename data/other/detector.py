@@ -26,7 +26,7 @@ sess = tf.Session()
 tf.set_random_seed(42)
 K.set_session(sess)
 
-model = load_model("../vasilisa.model", compile=False)
+model = load_model("../vasilisa.h5", compile=False)
 
 for f in glob.glob('*.raw'):
     spec[9] = f
